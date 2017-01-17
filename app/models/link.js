@@ -6,8 +6,11 @@ var Link = db.Model.extend({
   tableName: 'urls',
   hasTimestamps: true,
   defaults: {
-    visits: 0
+    visits: 0,
   },
+  // user: function() {
+  //   return this.belongsTo(User, 'userId');
+  // },   
   clicks: function() {
     return this.hasMany(Click);
   },

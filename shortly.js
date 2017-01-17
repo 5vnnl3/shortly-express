@@ -2,6 +2,7 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
+var session = require('express-session');
 
 
 var db = require('./app/config');
@@ -21,26 +22,31 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
+app.use(session({
+  secret: 'keyboard cat',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: true }
+}));
 
-
-app.get('/', 
+app.get('/', util.checkUser,
 function(req, res) {
   res.render('index');
 });
 
-app.get('/create', 
+app.get('/create', util.checkUser,
 function(req, res) {
   res.render('index');
 });
 
-app.get('/links', 
+app.get('/links', util.checkUser,
 function(req, res) {
   Links.reset().fetch().then(function(links) {
     res.status(200).send(links.models);
   });
 });
 
-app.post('/links', 
+app.post('/links',
 function(req, res) {
   var uri = req.body.url;
 
@@ -76,7 +82,54 @@ function(req, res) {
 // Write your authentication routes here
 /************************************************************/
 
+app.get('/login', function(req, res) {
+  res.render('login');
+});
 
+app.post('/login', function(req, res) {
+  var username = req.body.username;
+  var password = req.body.password;
+
+  new User({ username: username, password: password }).fetch()
+    .then(function(found) {
+      if (found) {
+        res.cookie('jorrafe', 'nyancat').send();
+        res.redirect('/');
+        // res.cookie('keyboard', 'cat').status(200).redirect('/');
+      }
+    })
+    .catch(function(err) {
+      res.redirect('/login');
+    });
+});
+
+app.get('/signup', function(req, res) {
+  res.render('signup');
+});
+
+app.post('/signup', function(req, res) {
+  var username = req.body.username;
+  var password = req.body.password;
+
+  new User({ username: username, password: password }).fetch().then(function(found) {
+    // to do: same username different password -> send user error to use a diff username
+  
+
+
+    Users.create({ username: username, password: password })
+      .then(function(newUser) {
+        console.log('in then of post signup');
+        return res.redirect('/login');
+      });
+
+    // util.getUrlTitle(uri, function(err, title) {
+    //   if (elserr) {
+    //     console.log('Error reading URL heading: ', err);
+    //     return res.sendStatus(404);
+    //   }
+  });
+
+});
 
 /************************************************************/
 // Handle the wildcard route last - if all other routes fail
