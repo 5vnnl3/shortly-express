@@ -4,7 +4,6 @@ var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var session = require('express-session');
 
-
 var db = require('./app/config');
 var Users = require('./app/collections/users');
 var User = require('./app/models/user');
@@ -31,6 +30,7 @@ app.use(session({
 
 app.get('/', util.checkUser,
 function(req, res) {
+  console.log('home cookie', req.headers);
   res.render('index');
 });
 
@@ -83,19 +83,28 @@ function(req, res) {
 /************************************************************/
 
 app.get('/login', function(req, res) {
+  console.log('login cookie', req.headers);
   res.render('login');
 });
 
 app.post('/login', function(req, res) {
   var username = req.body.username;
   var password = req.body.password;
-
-  new User({ username: username, password: password }).fetch()
+  
+  new User({ username: username}).fetch()
     .then(function(found) {
       if (found) {
-        res.cookie('jorrafe', 'nyancat').send();
-        res.redirect('/');
-        // res.cookie('keyboard', 'cat').status(200).redirect('/');
+        found.comparePasswords(password, function(err, result) {
+          console.log('RESULT!!!', result);
+          if (err) {
+            console.log('Password does not match');
+          } else if (result === true) {
+            res.cookie(username, found.get('password')).send();
+            return res.redirect('/');
+          } else {
+            return res.redirect('/login');
+          }
+        });
       } else {
         res.redirect('/login');
       }
@@ -110,16 +119,16 @@ app.post('/signup', function(req, res) {
   var username = req.body.username;
   var password = req.body.password;
 
-  new User({ username: username, password: password }).fetch().then(function(found) {
+  new User({ username: username}).fetch().then(function(found) {
+    console.log('new user sign up', found);
+    if (found === null) {
     // to do: same username different password -> send user error to use a diff username
-  
-
-
-    Users.create({ username: username, password: password })
-      .then(function(newUser) {
-        return res.redirect('/');
-      });
-
+      Users.create({ username: username, password: password })
+        .then(function(newUser) {
+          res.cookie(username, newUser.get('password')).send();
+          return res.redirect('/');
+        });
+    }
     // util.getUrlTitle(uri, function(err, title) {
     //   if (elserr) {
     //     console.log('Error reading URL heading: ', err);
@@ -127,6 +136,14 @@ app.post('/signup', function(req, res) {
     //   }
   });
 
+});
+
+app.get('/logout', function(req, res) {
+  // var cookieName = res.header;
+  // console.log('cookiename', cookieName);
+  res.clearCookie('joraffe');
+    res.clearCookie('kevin');
+  res.redirect('/login');
 });
 
 /************************************************************/
