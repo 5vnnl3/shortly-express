@@ -96,10 +96,9 @@ app.post('/login', function(req, res) {
         res.cookie('jorrafe', 'nyancat').send();
         res.redirect('/');
         // res.cookie('keyboard', 'cat').status(200).redirect('/');
+      } else {
+        res.redirect('/login');
       }
-    })
-    .catch(function(err) {
-      res.redirect('/login');
     });
 });
 
@@ -118,8 +117,7 @@ app.post('/signup', function(req, res) {
 
     Users.create({ username: username, password: password })
       .then(function(newUser) {
-        console.log('in then of post signup');
-        return res.redirect('/login');
+        return res.redirect('/');
       });
 
     // util.getUrlTitle(uri, function(err, title) {
