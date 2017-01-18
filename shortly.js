@@ -3,6 +3,7 @@ var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var session = require('express-session');
+var _ = require('underscore-node');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -30,7 +31,6 @@ app.use(session({
 
 app.get('/', util.checkUser,
 function(req, res) {
-  console.log('home cookie', req.headers);
   res.render('index');
 });
 
@@ -41,41 +41,56 @@ function(req, res) {
 
 app.get('/links', util.checkUser,
 function(req, res) {
-  Links.reset().fetch().then(function(links) {
-    res.status(200).send(links.models);
+  var username = req.headers.cookie.split('=')[0];
+  new User({ username: username }).fetch().then(function(found) {
+    var userId = found.attributes.id;
+    Links.reset().fetch().then(function(links) {
+      var filtered = _.filter(links.models, function(link) {
+        return link.attributes.userId === userId; 
+      });
+      res.status(200).send(filtered);
+    });
+    
   });
 });
 
 app.post('/links',
 function(req, res) {
   var uri = req.body.url;
-
-  if (!util.isValidUrl(uri)) {
-    console.log('Not a valid url: ', uri);
-    return res.sendStatus(404);
-  }
-
-  new Link({ url: uri }).fetch().then(function(found) {
-    if (found) {
-      res.status(200).send(found.attributes);
-    } else {
-      util.getUrlTitle(uri, function(err, title) {
-        if (err) {
-          console.log('Error reading URL heading: ', err);
+  var username = req.headers.cookie.split('=')[0];
+  new User({ username: username}).fetch()
+    .then(function(found) {
+      if (found) {
+        var userId = found.attributes.id;
+        if (!util.isValidUrl(uri)) {
+          console.log('Not a valid url: ', uri);
           return res.sendStatus(404);
         }
 
-        Links.create({
-          url: uri,
-          title: title,
-          baseUrl: req.headers.origin
-        })
-        .then(function(newLink) {
-          res.status(200).send(newLink);
+        new Link({ url: uri}).fetch().then(function(found) {
+          if (found) {
+            res.status(200).send(found.attributes);
+          } else {
+            util.getUrlTitle(uri, function(err, title) {
+              if (err) {
+                console.log('Error reading URL heading: ', err);
+                return res.sendStatus(404);
+              }
+
+              Links.create({
+                url: uri,
+                title: title,
+                baseUrl: req.headers.origin,
+                userId: userId
+              })
+              .then(function(newLink) {
+                res.status(200).send(newLink);
+              });
+            });
+          }
         });
-      });
-    }
-  });
+      }
+    });
 });
 
 /************************************************************/
@@ -83,7 +98,6 @@ function(req, res) {
 /************************************************************/
 
 app.get('/login', function(req, res) {
-  console.log('login cookie', req.headers);
   res.render('login');
 });
 
@@ -95,7 +109,6 @@ app.post('/login', function(req, res) {
     .then(function(found) {
       if (found) {
         found.comparePasswords(password, function(err, result) {
-          console.log('RESULT!!!', result);
           if (err) {
             console.log('Password does not match');
           } else if (result === true) {
@@ -120,7 +133,6 @@ app.post('/signup', function(req, res) {
   var password = req.body.password;
 
   new User({ username: username}).fetch().then(function(found) {
-    console.log('new user sign up', found);
     if (found === null) {
     // to do: same username different password -> send user error to use a diff username
       Users.create({ username: username, password: password })
@@ -129,20 +141,13 @@ app.post('/signup', function(req, res) {
           return res.redirect('/');
         });
     }
-    // util.getUrlTitle(uri, function(err, title) {
-    //   if (elserr) {
-    //     console.log('Error reading URL heading: ', err);
-    //     return res.sendStatus(404);
-    //   }
   });
 
 });
 
 app.get('/logout', function(req, res) {
-  // var cookieName = res.header;
-  // console.log('cookiename', cookieName);
-  res.clearCookie('joraffe');
-    res.clearCookie('kevin');
+  var username = req.headers.cookie.split('=')[0];
+  res.clearCookie(username);
   res.redirect('/login');
 });
 

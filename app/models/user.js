@@ -16,16 +16,6 @@ var User = db.Model.extend({
       });
     };
   },
-    // this.on('fetching', function(model, attrs, options) {
-    //   console.log('password or hash?', model.get('password'));
-    //   return bcrypt.compare(model.attributes.password, model.get('password'), function(err, res) {
-    //     if (err) {
-    //       console.error('password doesn\'t match', err);
-    //     }
-    //   });
-    // });
-
-  // -----------copied
   hashPassword: function() {
     var cipher = Promise.promisify(bcrypt.hash);
     // return a promise - bookshelf will wait for the promise
